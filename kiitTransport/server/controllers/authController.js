@@ -41,10 +41,11 @@ export const register = async (req, res) => {
 
         const token = generateToken(newUser)
         res.cookie('token', token, {
-            httpOnly: true,
-            maxAge: 3600000, // 1 hour in milliseconds
-            sameSite: 'lax' // Allow cross-origin cookies for CORS
-        });
+        httpOnly: true,
+        secure: true,        // ✅ works on HTTPS (Vercel + Render)
+        sameSite: 'none',    // ✅ allows cross-origin cookies
+        maxAge: 24 * 60 * 60 * 1000  // optional: 1 day expiry
+        })
         res.status(201).json({ message: "Registration Succesfull" })
     } catch (e) {
         console.log(e.message)
