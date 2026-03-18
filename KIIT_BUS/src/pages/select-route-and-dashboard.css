@@ -1,0 +1,294 @@
+/* ═══════════════════════════════════════════════════════
+   SelectRoute
+   ═══════════════════════════════════════════════════════ */
+
+.select-route {
+  @apply min-h-[calc(100vh-3.5rem)] md:min-h-[calc(100vh-4rem)] pb-24 md:pb-12 bg-slate-50 relative;
+}
+.select-route__hero-bg {
+  @apply h-52 rounded-b-[40px] absolute top-0 inset-x-0 overflow-hidden transition-colors duration-300;
+}
+.select-route__hero-bg--live {
+  @apply bg-blue-600;
+}
+.select-route__hero-bg--test {
+  @apply bg-amber-500;
+}
+.select-route__inner {
+  @apply max-w-3xl mx-auto px-4 pt-8 relative z-10;
+}
+.select-route__title-row {
+  @apply text-white mb-6 flex items-start justify-between gap-4;
+}
+.select-route__title {
+  @apply text-3xl font-bold mb-1 tracking-tight;
+}
+.select-route__subtitle {
+  @apply opacity-80 text-sm;
+}
+.select-route__test-toggle {
+  @apply flex flex-col items-end gap-2 shrink-0;
+}
+.select-route__test-btn--active {
+  @apply flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border transition-all bg-white text-amber-600 border-white/50 shadow-md;
+}
+.select-route__test-btn--inactive {
+  @apply flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border transition-all bg-white/15 text-white border-white/20 hover:bg-white/25;
+}
+.select-route__clock-badge--test {
+  @apply flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full border bg-amber-400/30 border-amber-200/50 text-amber-100;
+}
+.select-route__clock-badge--live {
+  @apply flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full border bg-white/10 border-white/20 text-white/80;
+}
+.select-route__search-card {
+  @apply mb-6 !p-6 shadow-xl border-0;
+}
+.select-route__form {
+  @apply space-y-4;
+}
+.select-route__stop-connector {
+  @apply relative pl-8 space-y-4;
+}
+.select-route__connector-line {
+  @apply absolute left-3 top-3 bottom-10 w-0.5 bg-slate-200;
+}
+.select-route__connector-dot--top {
+  @apply absolute -top-1 -left-[5px] w-3 h-3 rounded-full border-2 border-slate-300 bg-white;
+}
+.select-route__connector-dot--bottom--live {
+  @apply absolute -bottom-1 -left-[5px] w-3 h-3 rounded-full ring-4 bg-blue-600 ring-blue-500/20;
+}
+.select-route__connector-dot--bottom--test {
+  @apply absolute -bottom-1 -left-[5px] w-3 h-3 rounded-full ring-4 bg-amber-500 ring-amber-500/20;
+}
+.select-route__error-msg {
+  @apply text-sm text-red-500 flex items-center gap-1.5 bg-red-50 px-3 py-2 rounded-xl border border-red-100;
+}
+.select-route__submit-btn--live {
+  @apply w-full py-4 text-lg font-bold shadow-lg mt-4 transition-colors shadow-blue-500/30;
+}
+.select-route__submit-btn--test {
+  @apply !bg-amber-500 hover:!bg-amber-600 shadow-amber-200;
+}
+.select-route__results-header {
+  @apply flex items-center gap-2 px-1;
+}
+.select-route__results-title {
+  @apply text-lg font-bold text-slate-800;
+}
+.select-route__active-badge--has {
+  @apply ml-auto text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700;
+}
+.select-route__active-badge--none {
+  @apply ml-auto text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-500;
+}
+.select-route__no-ml-warning {
+  @apply flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-700;
+}
+.select-route__empty-state {
+  @apply text-center py-12 bg-white rounded-2xl border border-dashed border-slate-300;
+}
+
+/* BusCard in SelectRoute */
+.bus-card--active {
+  @apply !p-4 border transition-all border-emerald-200 bg-emerald-50/40 shadow-md hover:shadow-lg;
+}
+.bus-card--idle {
+  @apply !p-4 border transition-all border-slate-100 bg-slate-50/60 opacity-55;
+}
+.bus-card--default {
+  @apply !p-4 border shadow-sm hover:shadow-md hover:border-blue-200;
+}
+.bus-card__icon--active {
+  @apply w-11 h-11 rounded-xl flex items-center justify-center bg-emerald-100 text-emerald-700;
+}
+.bus-card__icon--idle {
+  @apply w-11 h-11 rounded-xl flex items-center justify-center bg-slate-100 text-slate-400;
+}
+.bus-card__icon--default {
+  @apply w-11 h-11 rounded-xl flex items-center justify-center bg-slate-100 text-slate-600;
+}
+.bus-card__running-badge {
+  @apply flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full;
+}
+.bus-card__running-dot {
+  @apply w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse;
+}
+.bus-card__idle-badge {
+  @apply text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full;
+}
+.bus-card__stops-count {
+  @apply text-[10px] text-slate-500 uppercase font-semibold tracking-wide;
+}
+.bus-card__stops-value {
+  @apply text-xl font-bold text-emerald-600 flex items-center gap-1 justify-end;
+}
+.bus-card__ml-assignment {
+  @apply flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mb-3;
+}
+.bus-card__route-meta {
+  @apply text-sm text-slate-500 mb-3 flex items-center gap-1;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Dashboard
+   ═══════════════════════════════════════════════════════ */
+
+.dashboard {
+  @apply min-h-screen bg-slate-50 pb-24 md:pb-12;
+}
+
+/* Hero */
+.dashboard__hero {
+  @apply relative bg-gradient-to-br from-blue-600 to-indigo-700 text-white
+    pt-12 pb-28 px-6 overflow-hidden rounded-b-[40px] md:rounded-b-[60px]
+    shadow-xl shadow-blue-900/20;
+}
+.dashboard__hero-bg {
+  @apply absolute inset-0 overflow-hidden pointer-events-none;
+}
+.dashboard__hero-blob-top {
+  @apply absolute -top-1/4 -left-1/4 w-1/2 h-full bg-white/10 rounded-full blur-3xl;
+}
+.dashboard__hero-blob-bottom {
+  @apply absolute -bottom-1/4 -right-1/4 w-3/5 h-full bg-indigo-500/20 rounded-full blur-3xl;
+}
+.dashboard__hero-inner {
+  @apply max-w-7xl mx-auto relative z-10 flex flex-col md:flex-row items-center justify-between gap-10;
+}
+.dashboard__hero-left {
+  @apply md:w-1/2 text-center md:text-left;
+}
+.dashboard__hero-badge {
+  @apply inline-flex items-center gap-2 bg-white/15 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold mb-4 border border-white/20;
+}
+.dashboard__hero-title {
+  @apply text-4xl md:text-5xl font-black mb-3 tracking-tight leading-tight;
+}
+.dashboard__hero-title-sub {
+  @apply text-blue-200;
+}
+.dashboard__hero-subtitle {
+  @apply text-blue-100 text-base mb-6 leading-relaxed max-w-md mx-auto md:mx-0;
+}
+.dashboard__hero-clock--live {
+  @apply flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border bg-white/10 border-white/20 text-white;
+}
+.dashboard__hero-clock--test {
+  @apply flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border bg-amber-400/20 border-amber-300/50 text-amber-200;
+}
+.dashboard__hero-test-btn--active {
+  @apply text-xs font-semibold px-3 py-1.5 rounded-full border transition-all bg-amber-400 text-amber-900 border-amber-300;
+}
+.dashboard__hero-test-btn--inactive {
+  @apply text-xs font-semibold px-3 py-1.5 rounded-full border transition-all bg-white/10 border-white/20 text-white/80 hover:bg-white/20;
+}
+.dashboard__hero-cta-row {
+  @apply flex flex-col sm:flex-row gap-3 justify-center md:justify-start;
+}
+.dashboard__hero-cta-primary {
+  @apply h-12 px-6 rounded-2xl font-bold text-sm bg-white text-blue-700 shadow-lg hover:bg-blue-50 transition-colors flex items-center justify-center gap-2;
+}
+.dashboard__hero-cta-secondary {
+  @apply h-12 px-6 rounded-2xl font-bold text-sm bg-white/15 text-white border border-white/20 hover:bg-white/25 transition-colors flex items-center justify-center gap-2 w-full sm:w-auto;
+}
+.dashboard__hero-right {
+  @apply md:w-1/2 w-full;
+}
+
+/* Preview card */
+.dashboard__preview-card {
+  @apply bg-white/10 backdrop-blur-xl border border-white/20 p-6 rounded-3xl shadow-2xl;
+}
+.dashboard__preview-bus-avatar {
+  @apply w-12 h-12 rounded-full bg-yellow-400 flex items-center justify-center shadow-lg shadow-yellow-400/30;
+}
+.dashboard__preview-arriving {
+  @apply font-bold text-lg;
+}
+.dashboard__preview-route {
+  @apply text-blue-100 text-sm;
+}
+.dashboard__preview-eta-value {
+  @apply font-bold text-2xl;
+}
+.dashboard__preview-route-vis {
+  @apply bg-white/5 rounded-xl p-4 flex gap-4 items-center mb-2;
+}
+.dashboard__preview-stop {
+  @apply w-10 h-10 rounded-full flex items-center justify-center;
+}
+.dashboard__preview-stop--from {
+  @apply bg-blue-500/30;
+}
+.dashboard__preview-stop--to {
+  @apply bg-emerald-500/30;
+}
+.dashboard__preview-progress {
+  @apply h-1.5 flex-1 bg-white/10 rounded-full overflow-hidden;
+}
+.dashboard__preview-progress-fill {
+  @apply h-full w-2/3 bg-emerald-400 rounded-full;
+}
+.dashboard__preview-gps-label {
+  @apply flex items-center justify-center gap-2 text-xs text-blue-200 mt-2;
+}
+.dashboard__preview-gps-dot {
+  @apply w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse;
+}
+
+/* Main content */
+.dashboard__main {
+  @apply max-w-7xl mx-auto px-6 -mt-14 relative z-20;
+}
+.dashboard__stats-grid {
+  @apply grid grid-cols-1 md:grid-cols-3 gap-5 mb-10;
+}
+.dashboard__quick-title {
+  @apply text-lg font-bold text-slate-800 mb-4 px-1;
+}
+.dashboard__quick-grid {
+  @apply grid grid-cols-2 md:grid-cols-4 gap-4;
+}
+.dashboard__quick-card {
+  @apply bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-200 transition-all text-center group;
+}
+.dashboard__quick-icon {
+  @apply w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform;
+}
+
+/* Find Bus panel */
+.find-bus-panel {
+  @apply bg-white rounded-3xl border border-slate-200 shadow-2xl p-6;
+}
+.find-bus-panel__header {
+  @apply flex items-center gap-2 mb-5;
+}
+.find-bus-panel__icon-wrap {
+  @apply w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center;
+}
+.find-bus-panel__title {
+  @apply font-bold text-slate-800 text-base;
+}
+.find-bus-panel__clock--live {
+  @apply ml-auto flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border bg-emerald-50 border-emerald-200 text-emerald-700;
+}
+.find-bus-panel__clock--test {
+  @apply ml-auto flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-50 border-amber-200 text-amber-700;
+}
+.find-bus-panel__stop-selectors {
+  @apply flex items-end gap-2 mb-4;
+}
+.find-bus-panel__arrow-btn {
+  @apply shrink-0 mb-1 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center;
+}
+.find-bus-panel__search-btn--ready-live {
+  @apply w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200;
+}
+.find-bus-panel__search-btn--ready-test {
+  @apply w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-200;
+}
+.find-bus-panel__search-btn--disabled {
+  @apply w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all bg-slate-100 text-slate-400 cursor-not-allowed;
+}

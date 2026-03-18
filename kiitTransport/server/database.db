@@ -1,0 +1,99 @@
+-- 1) create database
+CREATE DATABASE transport
+
+-- 1) users: stores admins + drivers
+CREATE TABLE users (
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('admin','driver')),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  phone TEXT
+);
+-- purpose: authentication records. index on email for login.
+
+-- 2) drivers: driver profile linking user -> bus + api_key
+CREATE TABLE drivers (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  bus_id BIGINT REFERENCES buses(id),
+  api_key TEXT UNIQUE NOT NULL,
+  api_key_expires TIMESTAMPTZ,
+  device_meta JSONB,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+-- purpose: separate driver metadata and api_key management. index on api_key.
+
+-- 3) buses: bus registry
+CREATE TABLE buses (
+  id BIGSERIAL PRIMARY KEY,
+  code TEXT UNIQUE NOT NULL,          -- bus number or code
+  description TEXT,
+  capacity INT,
+  status TEXT NOT NULL DEFAULT 'active'
+    CHECK (status IN ('active', 'idle', 'maintenance')),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- purpose: list of buses. index on code.
+
+-- 4) stops: static stop locations
+CREATE TABLE stops (
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  lat DOUBLE PRECISION NOT NULL,
+  lng DOUBLE PRECISION NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+-- purpose: pickup/dropoff points. consider PostGIS spatial index if enabled.
+
+CREATE TABLE bus_stops (
+  bus_id BIGINT REFERENCES buses(id) ON DELETE CASCADE,
+  stop_id BIGINT REFERENCES stops(id) ON DELETE CASCADE,
+  seq INT NOT NULL,
+  PRIMARY KEY (bus_id, seq)
+);
+
+
+-- 5) bus_last_locations: single-row per bus for quick lookups
+CREATE TABLE bus_last_locations (
+  bus_id BIGINT PRIMARY KEY REFERENCES buses(id) ON DELETE CASCADE,
+  driver_id BIGINT REFERENCES drivers(id),
+  lat DOUBLE PRECISION NOT NULL,
+  lng DOUBLE PRECISION NOT NULL,
+  speed_m_s DOUBLE PRECISION,
+  heading_deg DOUBLE PRECISION,
+  accuracy_m DOUBLE PRECISION,
+  timestamp TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+-- purpose: fast current location queries. index on (bus_id).
+
+-- 6) bus_locations_history: append-only for auditing / analytics
+CREATE TABLE bus_locations_history (
+  id BIGSERIAL PRIMARY KEY,
+  bus_id BIGINT REFERENCES buses(id),
+  driver_id BIGINT,
+  lat DOUBLE PRECISION NOT NULL,
+  lng DOUBLE PRECISION NOT NULL,
+  speed_m_s DOUBLE PRECISION,
+  heading_deg DOUBLE PRECISION,
+  accuracy_m DOUBLE PRECISION,
+  timestamp TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+-- purpose: historical track. index on (bus_id, timestamp).
+
+CREATE TABLE allocations (
+    id SERIAL PRIMARY KEY,
+    vehicle_code VARCHAR(50),
+    vehicle_type VARCHAR(20),
+    hostel VARCHAR(100),
+    time_slot VARCHAR(20),
+    round INT,
+    students_assigned INT,
+    start_time VARCHAR(20),
+    end_time VARCHAR(20),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

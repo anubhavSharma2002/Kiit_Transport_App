@@ -1,0 +1,99 @@
+/* ── AdminDashboard ──────────────────────────────────── */
+
+.admin-dashboard {
+  @apply space-y-8;
+}
+.admin-dashboard__header {
+  @apply flex flex-col md:flex-row md:items-center justify-between gap-4;
+}
+.admin-dashboard__date {
+  @apply text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1;
+}
+.admin-dashboard__title {
+  @apply text-3xl font-bold text-secondary;
+}
+.admin-dashboard__subtitle {
+  @apply text-slate-500 mt-1;
+}
+.admin-dashboard__header-actions {
+  @apply flex gap-3;
+}
+.admin-dashboard__stats-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5;
+}
+
+/* Fleet Health Bar */
+.fleet-health {
+  @apply bg-white rounded-2xl border border-slate-100 shadow-sm px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-4;
+}
+.fleet-health__label {
+  @apply flex items-center gap-2 shrink-0;
+}
+.fleet-health__label-text {
+  @apply text-sm font-semibold text-slate-600;
+}
+.fleet-health__bar {
+  @apply flex-1 h-3 bg-slate-100 rounded-full overflow-hidden flex;
+}
+.fleet-health__segment--active {
+  @apply h-full bg-emerald-500 transition-all duration-700;
+}
+.fleet-health__segment--idle {
+  @apply h-full bg-amber-400 transition-all duration-700;
+}
+.fleet-health__segment--maintenance {
+  @apply h-full bg-red-400 transition-all duration-700;
+}
+.fleet-health__legend {
+  @apply flex items-center gap-4 text-xs font-medium text-slate-500 shrink-0;
+}
+.fleet-health__legend-dot--active      { @apply w-2 h-2 rounded-full bg-emerald-500; }
+.fleet-health__legend-dot--idle        { @apply w-2 h-2 rounded-full bg-amber-400; }
+.fleet-health__legend-dot--maintenance { @apply w-2 h-2 rounded-full bg-red-400; }
+
+/* Action Cards */
+.admin-dashboard__action-grid {
+  @apply grid grid-cols-1 lg:grid-cols-2 gap-6;
+}
+.action-card--map {
+  @apply relative overflow-hidden group bg-gradient-to-br from-blue-600 to-indigo-700 border-0 shadow-lg shadow-indigo-200/50 !text-white;
+}
+.action-card--ai {
+  @apply relative overflow-hidden bg-gradient-to-br from-violet-600 to-purple-700 border-0 shadow-lg shadow-purple-200/50 !text-white;
+}
+.action-card__bg-icon {
+  @apply absolute -right-8 -bottom-8 opacity-10 group-hover:opacity-20 transition-opacity;
+}
+.action-card__content {
+  @apply relative z-10;
+}
+.action-card__live-badge {
+  @apply inline-flex items-center gap-1.5 text-xs font-bold bg-white/20 px-2.5 py-1 rounded-full mb-4;
+}
+.action-card__live-dot {
+  @apply w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse;
+}
+.action-card__title {
+  @apply text-2xl font-bold mb-2;
+}
+.action-card__subtitle {
+  @apply text-blue-100 text-sm mb-6 max-w-sm;
+}
+.action-card__btn {
+  @apply flex items-center gap-2 bg-white text-blue-700 font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-blue-50 transition-colors shadow-md;
+}
+.action-card__ai-badge {
+  @apply inline-flex items-center gap-1.5 text-xs font-bold bg-white/20 px-2.5 py-1 rounded-full mb-4;
+}
+.action-card__ai-rec {
+  @apply bg-white/15 backdrop-blur rounded-xl p-4 border border-white/20 mb-6;
+}
+.action-card__ai-rec-label {
+  @apply text-[11px] font-bold text-purple-200 uppercase tracking-wide mb-1;
+}
+.action-card__ai-rec-text {
+  @apply text-sm text-white/90;
+}
+.action-card__ai-btn {
+  @apply flex items-center gap-2 bg-white text-purple-700 font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-purple-50 transition-colors shadow-md;
+}

@@ -1,0 +1,39 @@
+/* ── DriverLayout ────────────────────────────────────── */
+
+.driver-layout {
+  @apply min-h-screen bg-slate-50 pb-24;
+}
+.driver-layout__topbar {
+  @apply bg-primary text-white p-4 sticky top-0 z-30 shadow-md;
+}
+.driver-layout__topbar-title {
+  @apply text-lg font-bold;
+}
+.driver-layout__content {
+  @apply p-4;
+}
+.driver-layout__bottomnav {
+  @apply fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200
+    pb-4 pt-1 px-4 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)];
+}
+.driver-layout__bottomnav-inner {
+  @apply flex justify-between items-end;
+}
+.driver-layout__nav-link {
+  @apply flex flex-col items-center gap-1 p-2 w-full transition-all duration-300 relative;
+}
+.driver-layout__nav-link--active {
+  @apply text-primary;
+}
+.driver-layout__nav-link--inactive {
+  @apply text-slate-400;
+}
+.driver-layout__nav-indicator {
+  @apply absolute -top-3 w-8 h-1 bg-primary rounded-full;
+}
+.driver-layout__nav-label {
+  @apply text-[10px] font-medium;
+}
+.driver-layout__nav-label--active {
+  @apply font-bold;
+}

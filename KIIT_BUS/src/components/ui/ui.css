@@ -1,0 +1,57 @@
+/* ── ui/Card ─────────────────────────────────────────── */
+
+.card {
+  @apply bg-white rounded-2xl shadow-md border border-slate-100 p-6;
+}
+
+/* ── ui/Input ────────────────────────────────────────── */
+
+.input-wrapper {
+  @apply space-y-2;
+}
+.input-label {
+  @apply text-sm font-medium text-slate-700 ml-1;
+}
+.input-field-wrap {
+  @apply relative;
+}
+.input-icon {
+  @apply absolute left-3 top-1/2 -translate-y-1/2 text-slate-400;
+}
+.input-field {
+  @apply w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3
+    outline-none text-slate-800 transition-all duration-200
+    placeholder:text-slate-400
+    focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20
+    disabled:opacity-50 disabled:bg-slate-100;
+}
+.input-field--icon {
+  @apply pl-10;
+}
+.input-field--error {
+  @apply border-red-500 focus:border-red-500 focus:ring-red-500/20;
+}
+.input-error-msg {
+  @apply text-xs text-red-500 ml-1;
+}
+
+/* ── ui/Button ───────────────────────────────────────── */
+
+.btn {
+  @apply inline-flex items-center justify-center rounded-xl font-medium transition-colors
+    focus:outline-none focus:ring-2 focus:ring-offset-2
+    disabled:opacity-50 disabled:pointer-events-none;
+}
+.btn--primary   { @apply bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 shadow-lg shadow-blue-500/30; }
+.btn--secondary { @apply bg-slate-800 text-white hover:bg-slate-900 focus:ring-slate-500 shadow-lg shadow-slate-900/20; }
+.btn--outline   { @apply border-2 border-slate-200 hover:bg-slate-50 text-slate-700; }
+.btn--ghost     { @apply hover:bg-slate-100 text-slate-600 hover:text-slate-900; }
+.btn--danger    { @apply bg-red-500 text-white hover:bg-red-600 focus:ring-red-500 shadow-lg shadow-red-500/30; }
+.btn--success   { @apply bg-emerald-500 text-white hover:bg-emerald-600 focus:ring-emerald-500 shadow-lg shadow-emerald-500/30; }
+.btn--sm   { @apply h-9 px-3 text-sm; }
+.btn--md   { @apply h-11 px-6 text-base; }
+.btn--lg   { @apply h-14 px-8 text-lg; }
+.btn--icon { @apply h-10 w-10; }
+.btn-spinner {
+  @apply animate-spin -ml-1 mr-2 h-4 w-4 text-current;
+}

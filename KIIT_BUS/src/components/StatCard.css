@@ -1,0 +1,33 @@
+/* ── StatCard ────────────────────────────────────────── */
+
+.stat-card {
+  @apply flex flex-col justify-between h-full border-none shadow-md hover:shadow-lg transition-all duration-300;
+}
+.stat-card__header {
+  @apply flex justify-between items-start mb-4;
+}
+.stat-card__title {
+  @apply text-sm font-medium text-slate-500 uppercase tracking-wider;
+}
+.stat-card__badge {
+  @apply text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide;
+}
+.stat-card__badge--live {
+  @apply bg-green-100 text-green-700;
+}
+.stat-card__badge--alert {
+  @apply bg-red-100 text-red-700;
+}
+.stat-card__badge--default {
+  @apply bg-slate-100 text-slate-700;
+}
+.stat-card__footer {
+  @apply flex items-end justify-between;
+}
+.stat-card__value {
+  @apply text-3xl font-bold text-slate-800;
+}
+.stat-card__icon-wrap--blue   { @apply p-2 rounded-lg text-blue-600 bg-blue-50; }
+.stat-card__icon-wrap--green  { @apply p-2 rounded-lg text-emerald-600 bg-emerald-50; }
+.stat-card__icon-wrap--orange { @apply p-2 rounded-lg text-orange-600 bg-orange-50; }
+.stat-card__icon-wrap--red    { @apply p-2 rounded-lg text-red-600 bg-red-50; }
