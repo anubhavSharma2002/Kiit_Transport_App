@@ -18,7 +18,10 @@ const app = express();
 //middleware
 app.use(express.json());
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: [
+    "http://localhost:5173",
+    "https://your-app-name.vercel.app"  // ← add your actual Vercel URL
+  ],
   credentials: true
 }));
 app.use(cookieParser())
