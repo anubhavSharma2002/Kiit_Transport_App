@@ -6,10 +6,10 @@ import {
 } from "lucide-react";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
+import API_BASE_ROOT from "../apiBase";
 
 const ML_STORAGE_KEY = "kiit_ml_allocation";
-const API_BASE       = "http://localhost:8000";
-
+const API_BASE = API_BASE_ROOT;
 // ─── Helpers ─────────────────────────────────────────────────
 function ServePctBar({ pct, isOptimal }) {
   const color = pct>=100 ? "bg-emerald-500" : pct>=75 ? "bg-blue-500" : pct>=50 ? "bg-amber-400" : "bg-red-400";
@@ -70,7 +70,7 @@ export default function MLPredictions() {
     const formData = new FormData();
     formData.append("file", file); formData.append("buses", buses); formData.append("shuttles", shuttles);
     try {
-      const res = await fetch(`${API_BASE}/api/ml/run-all`, { method:"POST", body:formData });
+      const res = await fetch(`${API_BASE}/ml/run-all`, { method:"POST", body:formData });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       if (!data.result) throw new Error("Invalid response format");
@@ -106,7 +106,7 @@ export default function MLPredictions() {
     const formData = new FormData();
     formData.append("file", file); formData.append("shuttles", shuttles);
     try {
-      const res = await fetch(`${API_BASE}/api/ml/fleet-analysis`, { method:"POST", body:formData });
+      const res = await fetch(`${API_BASE}/ml/fleet-analysis`, { method:"POST", body:formData });
       if (!res.ok) throw new Error(await res.text());
       setAnalysisData(await res.json());
       setTimeout(()=>analysisRef.current?.scrollIntoView({ behavior:"smooth" }), 100);
