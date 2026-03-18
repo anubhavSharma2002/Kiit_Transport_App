@@ -4,3 +4,7 @@ pandas
 numpy
 scikit-learn
 python-multipart
+fastapi
+uvicorn
+pandas
+python-multipart
