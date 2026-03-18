@@ -72,10 +72,11 @@ export const login = async (req, res) => {
         if (isValidUser) {
             const token = generateToken(existingUser)
             res.cookie('token', token, {
-                httpOnly: true,
-                maxAge: 3600000,
-                sameSite: 'lax'
-            });
+            httpOnly: true,
+            secure: true,         // ✅ add this
+            sameSite: 'none',     // ✅ change from 'lax' to 'none'
+            maxAge: 3600000
+        });
             return res.json({ message: "Login Sucessfull", role: existingUser.role })
         }
     } catch (e) {
