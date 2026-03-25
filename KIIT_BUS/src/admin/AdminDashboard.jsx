@@ -8,6 +8,7 @@ import Card from "../components/ui/Card";
 
 export default function AdminDashboard() {
   const [busStats, setBusStats] = useState({ active_buses: 0, idle_buses: 0, maintenance_buses: 0 });
+  const [waitingCount, setWaitingCount] = useState(0);
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
@@ -24,16 +25,33 @@ export default function AdminDashboard() {
       }
     };
 
+    const fetchWaitingCount = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/admin/getWaitingCount`, {
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        const data = await res.json();
+        setWaitingCount(data.count);
+      } catch (err) {
+        console.error("Failed to fetch waiting count:", err.message);
+      }
+    };
+
     fetchBusStats();
+    fetchWaitingCount();
     const clockTick = setInterval(() => setTime(new Date()), 60_000);
-    return () => clearInterval(clockTick);
+    // Poll waiting count every 30 s so the admin sees near-real-time updates
+    const waitingPoll = setInterval(fetchWaitingCount, 10_000);
+    return () => { clearInterval(clockTick); clearInterval(waitingPoll); };
   }, []);
 
   const stats = [
     { title: "Active Buses",    value: busStats.active_buses,      badge: "LIVE",  icon: Bus,    color: "green"  },
     { title: "Idle Buses",      value: busStats.idle_buses,                         icon: Clock,  color: "orange" },
     { title: "Maintenance",     value: busStats.maintenance_buses,  badge: "ALERT", icon: Wrench, color: "red"    },
-    { title: "Students Waiting",value: "246",                       badge: "NOW",   icon: Users,  color: "blue"   },
+    { title: "Students Waiting",value: waitingCount,                badge: "NOW",   icon: Users,  color: "blue"   },
   ];
 
   return (

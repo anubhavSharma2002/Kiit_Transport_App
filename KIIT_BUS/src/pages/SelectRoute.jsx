@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Bus, Clock, Search, MapPin, FlaskConical, Radio,
   AlertTriangle, CheckCircle2, ChevronRight, Zap,
-  Navigation as NavIcon
+  Navigation as NavIcon, Users, Timer, RefreshCw
 } from "lucide-react";
 import API_BASE from "../apiBase";
 import Button from "../components/ui/Button";
@@ -195,6 +195,62 @@ export default function SelectRoute() {
   const [allBusRoutes,setAllBusRoutes]= useState([]);
 
   const currentMin = testMode ? testMinutes : nowMin();
+
+  // ── Waiting state ────────────────────────────────────────
+  const WAITING_TTL = 20 * 60 * 1000;
+  const [isWaiting,      setIsWaiting]      = useState(() => {
+    const exp = localStorage.getItem('kiit_waiting_expiry');
+    return exp ? Date.now() < Number(exp) : false;
+  });
+  const [waitingExpiry,  setWaitingExpiry]  = useState(() => {
+    const exp = localStorage.getItem('kiit_waiting_expiry');
+    return exp ? Number(exp) : null;
+  });
+  const [waitingSecsLeft, setWaitingSecsLeft] = useState(0);
+  const [waitingLoading,  setWaitingLoading]  = useState(false);
+
+  useEffect(() => {
+    if (!isWaiting || !waitingExpiry) return;
+    const tick = () => {
+      const left = Math.max(0, Math.round((waitingExpiry - Date.now()) / 1000));
+      setWaitingSecsLeft(left);
+      if (left === 0) {
+        setIsWaiting(false);
+        setWaitingExpiry(null);
+        localStorage.removeItem('kiit_waiting_expiry');
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [isWaiting, waitingExpiry]);
+
+  const handleMarkWaiting = async () => {
+    if (isWaiting || waitingLoading) return;
+    setWaitingLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/markWaiting`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+      const expiry = Date.now() + WAITING_TTL;
+      localStorage.setItem('kiit_waiting_expiry', String(expiry));
+      setWaitingExpiry(expiry);
+      setIsWaiting(true);
+    } catch (err) {
+      console.error('markWaiting failed:', err.message);
+    } finally {
+      setWaitingLoading(false);
+    }
+  };
+
+  const fmtCountdown = secs => {
+    const m = String(Math.floor(secs / 60)).padStart(2, '0');
+    const s = String(secs % 60).padStart(2, '0');
+    return `${m}:${s}`;
+  };
 
   // Load stops + ML data + all bus routes
   useEffect(() => {
@@ -391,6 +447,54 @@ export default function SelectRoute() {
             </Button>
           </form>
         </Card>
+
+        {/* MARK AS WAITING BANNER */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className={`mb-5 rounded-2xl border p-4 flex items-center gap-4 transition-all duration-500
+            ${isWaiting
+              ? 'bg-emerald-50 border-emerald-200 shadow-sm'
+              : 'bg-white border-slate-200 shadow-sm'}`}
+        >
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors
+            ${isWaiting ? 'bg-emerald-100 text-emerald-600' : 'bg-purple-50 text-purple-600'}`}>
+            {isWaiting ? <Timer size={18} /> : <Users size={18} />}
+          </div>
+          <div className="flex-1 min-w-0">
+            {isWaiting ? (
+              <>
+                <p className="font-bold text-emerald-700 text-sm">You're marked as waiting</p>
+                <p className="text-xs text-emerald-500 mt-0.5 flex items-center gap-1">
+                  <Timer size={10} />
+                  Expires in <span className="font-mono font-bold ml-1">{fmtCountdown(waitingSecsLeft)}</span>
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="font-bold text-slate-800 text-sm">Waiting for a bus?</p>
+                <p className="text-xs text-slate-400 mt-0.5">Alert the admin — auto-clears in 20 min.</p>
+              </>
+            )}
+          </div>
+          <button
+            onClick={!isWaiting && !waitingLoading ? handleMarkWaiting : undefined}
+            disabled={isWaiting || waitingLoading}
+            className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all select-none
+              ${isWaiting
+                ? 'bg-emerald-100 text-emerald-500 cursor-not-allowed pointer-events-none'
+                : waitingLoading
+                  ? 'bg-purple-100 text-purple-400 cursor-wait pointer-events-none'
+                  : 'bg-purple-600 hover:bg-purple-700 text-white shadow-md shadow-purple-200 active:scale-95 cursor-pointer'}`}
+          >
+            {waitingLoading
+              ? <><RefreshCw size={13} className="animate-spin" /> Marking…</>
+              : isWaiting
+                ? <><CheckCircle2 size={13} /> Marked! ({fmtCountdown(waitingSecsLeft)})</>
+                : <><Users size={13} /> Mark As Waiting</>}
+          </button>
+        </motion.div>
 
         {/* RESULTS */}
         <AnimatePresence>

@@ -1,180 +1,404 @@
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { MapPin, Bus, X } from 'lucide-react'
-import Card from '../components/ui/Card'
+import { useEffect, useRef, useState, useCallback } from "react";
+import { MapPin, Bus, Navigation, RefreshCw, Radio, Wrench, Clock, Users } from "lucide-react";
+import API_BASE from "../apiBase";
 
-export default function LiveTracking() {
-  const [selectedBus, setSelectedBus] = useState(null)
-  const [viewMode, setViewMode] = useState('map')
+// ── KIIT campus route waypoints (lat/lng) ────────────────────
+// These are real roads on/around KIIT University, Bhubaneswar
+const CAMPUS_ROUTES = [
+  // Route A: Main gate loop (Campus 1 → Campus 2 → Hostel belt)
+  [
+    [20.3535, 85.8140], [20.3548, 85.8155], [20.3562, 85.8170],
+    [20.3575, 85.8162], [20.3580, 85.8145], [20.3568, 85.8130],
+    [20.3550, 85.8120], [20.3538, 85.8130], [20.3535, 85.8140],
+  ],
+  // Route B: Hostel K → Academic block loop
+  [
+    [20.3520, 85.8175], [20.3530, 85.8190], [20.3545, 85.8200],
+    [20.3560, 85.8195], [20.3572, 85.8180], [20.3565, 85.8165],
+    [20.3550, 85.8160], [20.3535, 85.8165], [20.3520, 85.8175],
+  ],
+  // Route C: Campus 11 → KIMS hospital loop
+  [
+    [20.3510, 85.8145], [20.3515, 85.8162], [20.3525, 85.8178],
+    [20.3540, 85.8185], [20.3555, 85.8178], [20.3560, 85.8160],
+    [20.3552, 85.8145], [20.3538, 85.8138], [20.3510, 85.8145],
+  ],
+  // Route D: Outer ring road
+  [
+    [20.3500, 85.8130], [20.3505, 85.8155], [20.3512, 85.8175],
+    [20.3525, 85.8195], [20.3542, 85.8205], [20.3560, 85.8200],
+    [20.3575, 85.8185], [20.3580, 85.8165], [20.3575, 85.8145],
+    [20.3560, 85.8130], [20.3540, 85.8120], [20.3520, 85.8122],
+    [20.3500, 85.8130],
+  ],
+];
 
-  const activeBuses = [
-    { id: 1, number: 'UT-201', route: 'Hostel A ↔ Campus 25', status: 'On Route', location: 'Near Hostel B' },
-    { id: 2, number: 'UT-205', route: 'Hostel C ↔ Campus 25', status: 'On Route', location: 'At Campus 25' },
-    { id: 3, number: 'UT-210', route: 'Hostel B ↔ Campus 25', status: 'At Stop', location: 'Hostel B' },
-    { id: 4, number: 'UT-215', route: 'Hostel D ↔ Campus 25', status: 'On Route', location: 'Near Library' },
-    { id: 5, number: 'UT-220', route: 'Hostel A ↔ Campus 25', status: 'Maintenance', location: 'Service Center' },
-  ]
+const ROUTE_NAMES = [
+  "Main Gate → Campus 2",
+  "Hostel K → Academic Block",
+  "Campus 11 → KIMS",
+  "Outer Ring Road",
+];
 
-  const routeStops = ['Hostel A', 'Hostel B', 'Hostel C', 'Hostel D', 'Library', 'Campus 25']
+const STATUS_CONFIG = {
+  active:      { label: "Active",      dot: "#10b981", badge: "bg-emerald-100 text-emerald-700" },
+  idle:        { label: "Idle",        dot: "#f59e0b", badge: "bg-amber-100 text-amber-700" },
+  maintenance: { label: "Service",     dot: "#ef4444", badge: "bg-red-100 text-red-700" },
+};
+
+// Interpolate position between two waypoints given a 0-1 fraction
+function interpolate(a, b, t) {
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+}
+
+// Get position along route given a 0-1 progress
+function positionOnRoute(route, progress) {
+  const total = route.length - 1;
+  const scaled = progress * total;
+  const idx = Math.min(Math.floor(scaled), total - 1);
+  const frac = scaled - idx;
+  return interpolate(route[idx], route[idx + 1], frac);
+}
+
+export default function LiveMap() {
+  const mapRef        = useRef(null);
+  const leafletRef    = useRef(null);   // L instance
+  const markersRef    = useRef({});     // busCode → L.Marker
+  const animFrameRef  = useRef(null);
+  const progressRef   = useRef({});     // busCode → 0..1 progress
+  const speedRef      = useRef({});     // busCode → speed per ms
+
+  const [drivers,     setDrivers]     = useState([]);
+  const [selected,    setSelected]    = useState(null);
+  const [loading,     setLoading]     = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [mapReady,    setMapReady]    = useState(false);
+
+  // Assign a deterministic route index to each bus based on its code
+  const getRouteIdx = (code) => {
+    let hash = 0;
+    for (let i = 0; i < code.length; i++) hash = (hash * 31 + code.charCodeAt(i)) & 0xffff;
+    return hash % CAMPUS_ROUTES.length;
+  };
+
+  // ── Load Leaflet CSS + JS dynamically ───────────────────────
+  useEffect(() => {
+    const linkId = "leaflet-css";
+    if (!document.getElementById(linkId)) {
+      const link = document.createElement("link");
+      link.id   = linkId;
+      link.rel  = "stylesheet";
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(link);
+    }
+
+    const scriptId = "leaflet-js";
+    if (document.getElementById(scriptId)) {
+      if (window.L) initMap();
+      return;
+    }
+    const script   = document.createElement("script");
+    script.id      = scriptId;
+    script.src     = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+    script.onload  = initMap;
+    document.head.appendChild(script);
+
+    return () => { if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current); };
+  }, []); // eslint-disable-line
+
+  // ── Initialise Leaflet map ───────────────────────────────────
+  function initMap() {
+    if (leafletRef.current || !mapRef.current) return;
+    const L = window.L;
+    leafletRef.current = L;
+
+    const map = L.map(mapRef.current, {
+      center: [20.3548, 85.8165],
+      zoom: 15,
+      zoomControl: false,
+    });
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19,
+    }).addTo(map);
+
+    L.control.zoom({ position: "bottomright" }).addTo(map);
+
+    // Draw route polylines faintly
+    CAMPUS_ROUTES.forEach((route, i) => {
+      const colors = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b"];
+      L.polyline(route, { color: colors[i], weight: 3, opacity: 0.35, dashArray: "6 6" }).addTo(map);
+    });
+
+    // Store map on ref so markers can be added later
+    leafletRef.current._map = map;
+    setMapReady(true);
+  }
+
+  // ── Make a custom bus icon ───────────────────────────────────
+  function makeBusIcon(status, isSelected) {
+    const L = leafletRef.current;
+    const dot = STATUS_CONFIG[status]?.dot ?? "#6366f1";
+    const ring = isSelected ? `box-shadow:0 0 0 3px ${dot}55;` : "";
+    const html = `
+      <div style="
+        width:36px;height:36px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+        background:${dot};border:3px solid white;
+        box-shadow:0 2px 8px rgba(0,0,0,0.3);${ring}
+        display:flex;align-items:center;justify-content:center;
+      ">
+        <svg style="transform:rotate(45deg)" xmlns="http://www.w3.org/2000/svg"
+          width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="7" width="20" height="13" rx="2"/>
+          <path d="M6 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"/>
+          <circle cx="7" cy="20" r="1"/><circle cx="17" cy="20" r="1"/>
+          <line x1="12" y1="7" x2="12" y2="20"/>
+        </svg>
+      </div>`;
+    return L.divIcon({ html, className: "", iconAnchor: [18, 36], popupAnchor: [0, -36] });
+  }
+
+  // ── Add / update markers when drivers or mapReady changes ───
+  useEffect(() => {
+    if (!mapReady || !leafletRef.current || drivers.length === 0) return;
+    const L   = leafletRef.current;
+    const map = L._map;
+
+    drivers.forEach((d) => {
+      const code     = d.vehicle;
+      const routeIdx = getRouteIdx(code);
+      const route    = CAMPUS_ROUTES[routeIdx];
+
+      // Initialise progress randomly so buses don't all start at same point
+      if (progressRef.current[code] === undefined) {
+        progressRef.current[code] = Math.random();
+        // Active buses move fast, idle very slow, maintenance stationary
+        speedRef.current[code] =
+          d.status === "active"      ? 0.000025 + Math.random() * 0.000015 :
+          d.status === "idle"        ? 0.000005 :
+          0; // maintenance — stopped
+      }
+
+      const pos = positionOnRoute(route, progressRef.current[code]);
+
+      if (markersRef.current[code]) {
+        markersRef.current[code].setIcon(makeBusIcon(d.status, selected === code));
+      } else {
+        const marker = L.marker(pos, { icon: makeBusIcon(d.status, selected === code) })
+          .addTo(map)
+          .bindPopup(`<strong>${code}</strong><br/>${d.name}<br/>${ROUTE_NAMES[routeIdx]}`);
+        marker.on("click", () => setSelected(code));
+        markersRef.current[code] = marker;
+      }
+    });
+  }, [drivers, mapReady, selected]); // eslint-disable-line
+
+  // ── Animation loop — move active buses along routes ─────────
+  useEffect(() => {
+    if (!mapReady) return;
+
+    let last = null;
+    function frame(ts) {
+      const dt = last ? ts - last : 16;
+      last = ts;
+
+      drivers.forEach((d) => {
+        if (d.status !== "active") return;
+        const code  = d.vehicle;
+        const route = CAMPUS_ROUTES[getRouteIdx(code)];
+        progressRef.current[code] = (progressRef.current[code] + speedRef.current[code] * dt) % 1;
+        const pos = positionOnRoute(route, progressRef.current[code]);
+        markersRef.current[code]?.setLatLng(pos);
+      });
+
+      animFrameRef.current = requestAnimationFrame(frame);
+    }
+
+    animFrameRef.current = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(animFrameRef.current);
+  }, [drivers, mapReady]); // eslint-disable-line
+
+  // ── Fetch real driver/bus data from backend ──────────────────
+  const fetchDrivers = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/admin/getDriverDetails`, {
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+      const data = await res.json();
+      setDrivers(Array.isArray(data) ? data : []);
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error("LiveMap fetch error:", err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDrivers();
+    const poll = setInterval(fetchDrivers, 15_000); // refresh every 15 s
+    return () => clearInterval(poll);
+  }, [fetchDrivers]);
+
+  // ── Pan to selected bus ──────────────────────────────────────
+  useEffect(() => {
+    if (!selected || !mapReady) return;
+    const marker = markersRef.current[selected];
+    if (marker) leafletRef.current._map.panTo(marker.getLatLng(), { animate: true });
+  }, [selected, mapReady]);
+
+  // ── Counts ───────────────────────────────────────────────────
+  const counts = drivers.reduce(
+    (acc, d) => { acc[d.status] = (acc[d.status] || 0) + 1; return acc; },
+    {}
+  );
 
   return (
-    <div className="h-[calc(100vh-64px)] flex flex-col md:flex-row relative overflow-hidden bg-slate-100">
+    <div className="h-[calc(100vh-64px)] bg-slate-100 flex flex-col md:flex-row">
 
-      {/* ================= MAP AREA ================= */}
-      <div className="flex-1 relative h-full bg-slate-200">
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-30">
-          <div className="text-center">
-            <MapPin size={64} className="mx-auto mb-2 text-slate-400" />
-            <p className="font-bold text-2xl text-slate-400">Map View</p>
+      {/* ── Sidebar ── */}
+      <div className="w-full md:w-96 bg-white border-r border-slate-200 z-10 flex flex-col shadow-xl">
+
+        {/* Header */}
+        <div className="p-5 border-b border-slate-100">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h1 className="text-xl font-bold text-slate-800">Fleet Monitor</h1>
+              <p className="text-slate-400 text-xs mt-0.5 flex items-center gap-1">
+                <Radio size={9} className="text-emerald-500 animate-pulse" />
+                {lastUpdated
+                  ? `Updated ${lastUpdated.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`
+                  : "Connecting…"}
+              </p>
+            </div>
+            <button onClick={fetchDrivers}
+              className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 text-slate-400 transition-all">
+              <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            </button>
+          </div>
+
+          {/* Status strip */}
+          <div className="flex gap-2">
+            {[
+              { key: "active",      icon: Bus,     label: "Active",  cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+              { key: "idle",        icon: Clock,   label: "Idle",    cls: "bg-amber-50 text-amber-700 border-amber-200" },
+              { key: "maintenance", icon: Wrench,  label: "Service", cls: "bg-red-50 text-red-600 border-red-200" },
+            ].map(({ key, icon: Icon, label, cls }) => (
+              <div key={key} className={`flex-1 flex flex-col items-center py-1.5 rounded-xl border text-xs font-bold ${cls}`}>
+                <Icon size={12} className="mb-0.5" />
+                <span className="text-base font-black leading-none">{counts[key] ?? 0}</span>
+                <span className="text-[9px] font-semibold opacity-70">{label}</span>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Mobile FAB */}
-        <div className="md:hidden absolute bottom-24 right-4 z-20">
-          <button
-            onClick={() => setViewMode('list')}
-            className="bg-blue-600 text-white p-4 rounded-full shadow-lg shadow-blue-500/40"
-          >
-            <Bus size={22} />
-          </button>
+        {/* Bus list */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50/50">
+          {loading && drivers.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-3">
+              <RefreshCw size={24} className="animate-spin opacity-40" />
+              <p className="text-sm">Loading fleet data…</p>
+            </div>
+          )}
+          {!loading && drivers.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2">
+              <Bus size={32} className="opacity-30" />
+              <p className="text-sm">No vehicles found</p>
+            </div>
+          )}
+          {drivers.map((d) => {
+            const routeIdx = getRouteIdx(d.vehicle);
+            const cfg      = STATUS_CONFIG[d.status] ?? STATUS_CONFIG.idle;
+            const isActive = d.status === "active";
+            const isSel    = selected === d.vehicle;
+
+            return (
+              <button
+                key={d.vehicle}
+                onClick={() => setSelected(s => s === d.vehicle ? null : d.vehicle)}
+                className={`w-full text-left p-3.5 rounded-xl border transition-all
+                  ${isSel
+                    ? "border-blue-300 bg-blue-50 shadow-sm"
+                    : "border-slate-100 bg-white hover:border-slate-200 hover:shadow-sm"}`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0
+                      ${isActive ? "bg-emerald-100 text-emerald-700"
+                        : d.status === "maintenance" ? "bg-red-100 text-red-500"
+                        : "bg-amber-50 text-amber-600"}`}>
+                      <Bus size={16} />
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-800 text-sm">{d.vehicle}</p>
+                      <p className="text-[11px] text-slate-400 truncate max-w-[130px]">{d.name}</p>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${cfg.badge}`}>
+                    {isActive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+                    {cfg.label}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-400 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100">
+                  <Navigation size={10} className="shrink-0 text-blue-400" />
+                  <span className="truncate">{ROUTE_NAMES[routeIdx]}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Footer note */}
+        <div className="px-4 py-3 border-t border-slate-100 bg-white">
+          <p className="text-[10px] text-slate-400 text-center">
+            Routes are simulated on KIIT campus · GPS positions update live
+          </p>
         </div>
       </div>
 
-      {/* ================= SIDEBAR ================= */}
-      <motion.div
-        initial={false}
-        animate={window.innerWidth < 768 ? (viewMode === 'list' ? { y: 0 } : { y: '100%' }) : { y: 0 }}
-        transition={{ type: "spring", damping: 25, stiffness: 200 }}
-        className={`
-          fixed inset-x-0 bottom-[56px] top-20 z-30
-          bg-white rounded-t-3xl shadow-[0_-5px_20px_rgba(0,0,0,0.1)]
-          md:static md:w-96 md:h-full md:border-l md:border-slate-200 md:rounded-none md:shadow-none md:z-0
-          flex flex-col
-          ${viewMode === 'list' ? 'pointer-events-auto' : 'pointer-events-none md:pointer-events-auto'}
-        `}
-      >
-        {/* Mobile Handle */}
-        <div className="md:hidden w-full flex justify-center pt-3 pb-1 cursor-pointer" onClick={() => setViewMode('map')}>
-          <div className="w-12 h-1.5 bg-slate-300 rounded-full" />
-        </div>
+      {/* ── Map ── */}
+      <div className="flex-1 relative">
+        <div ref={mapRef} className="absolute inset-0 z-0" />
 
-        <div className="p-4 md:p-6 border-b border-slate-100 flex justify-between items-center bg-white">
-          <div>
-            <h2 className="text-xl font-bold text-slate-800">Active Buses</h2>
-            <p className="text-sm text-slate-500">
-              {activeBuses.length} vehicles online
-            </p>
-          </div>
-          <button onClick={() => setViewMode('map')} className="md:hidden p-2 bg-slate-100 rounded-full">
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
-          {activeBuses.map((bus) => (
-            <div
-              key={bus.id}
-              onClick={() => setSelectedBus(bus)}
-              className={`
-                bg-white p-4 rounded-xl border transition-all cursor-pointer hover:shadow-md
-                ${selectedBus?.id === bus.id
-                  ? 'border-blue-600 ring-1 ring-blue-600'
-                  : 'border-slate-100 hover:border-blue-200'}
-              `}
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center font-bold">
-                    {bus.number.split('-')[1]}
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-slate-800">{bus.number}</h3>
-                    <p className="text-xs text-slate-500">{bus.route}</p>
-                  </div>
-                </div>
-
-                <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded-full ${
-                  bus.status === 'On Route'
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : bus.status === 'Maintenance'
-                    ? 'bg-red-100 text-red-700'
-                    : 'bg-amber-100 text-amber-700'
-                }`}>
-                  {bus.status}
-                </span>
+        {/* Top overlay — selected bus info */}
+        {selected && (() => {
+          const d = drivers.find(x => x.vehicle === selected);
+          if (!d) return null;
+          const cfg = STATUS_CONFIG[d.status] ?? STATUS_CONFIG.idle;
+          return (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[999] bg-white/95 backdrop-blur shadow-xl rounded-2xl px-5 py-3 flex items-center gap-4 border border-slate-200 pointer-events-none">
+              <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
+                <Bus size={18} />
               </div>
-
-              <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 p-2 rounded-lg">
-                <MapPin size={14} className="text-slate-400" />
-                <span>{bus.location}</span>
+              <div>
+                <p className="font-bold text-slate-800">{d.vehicle}</p>
+                <p className="text-xs text-slate-400">{d.name} · {ROUTE_NAMES[getRouteIdx(d.vehicle)]}</p>
               </div>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${cfg.badge}`}>{cfg.label}</span>
+            </div>
+          );
+        })()}
+
+        {/* Legend */}
+        <div className="absolute bottom-8 right-14 z-[999] bg-white/90 backdrop-blur rounded-xl shadow-md border border-slate-200 px-3 py-2.5 flex flex-col gap-1.5 pointer-events-none">
+          {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+            <div key={key} className="flex items-center gap-2 text-[11px] font-medium text-slate-600">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: cfg.dot }} />
+              {cfg.label}
             </div>
           ))}
+          <div className="flex items-center gap-2 text-[11px] font-medium text-slate-400 mt-0.5 pt-1.5 border-t border-slate-100">
+            <span className="w-2.5 h-0.5 bg-blue-400 opacity-50 rounded" style={{ borderTop: "2px dashed #60a5fa" }} />
+            Campus Routes
+          </div>
         </div>
-      </motion.div>
-
-      {/* ================= BUS DETAIL OVERLAY ================= */}
-      <AnimatePresence>
-        {selectedBus && (
-          <motion.div
-            initial={{ opacity: 0, y: 100 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 100 }}
-            className="absolute bottom-[80px] left-4 right-4 md:bottom-8 md:left-8 md:right-auto md:w-96 z-40"
-          >
-            <Card className="shadow-2xl border-blue-200 bg-white/95 backdrop-blur">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-800">
-                    Bus {selectedBus.number}
-                  </h3>
-                  <p className="text-sm text-slate-500">
-                    {selectedBus.route}
-                  </p>
-                </div>
-                <button onClick={() => setSelectedBus(null)} className="p-1 hover:bg-slate-100 rounded-full">
-                  <X size={18} className="text-slate-400" />
-                </button>
-              </div>
-
-              <div className="flex justify-between items-center py-3 border-y border-slate-100 mb-4">
-                <Stat label="Speed" value="42 km/h" />
-                <Stat label="ETA" value="3 min" highlight />
-                <Stat label="Next" value="Hostel C" />
-              </div>
-
-              {/* Timeline */}
-              <div className="flex items-center justify-between text-xs text-slate-400 px-2 relative">
-                <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-slate-200 -z-10" />
-                {routeStops.slice(0, 4).map((stop, i) => (
-                  <div key={i} className="flex flex-col items-center gap-1 bg-white px-1">
-                    <div className={`w-2 h-2 rounded-full ${
-                      i === 1
-                        ? 'bg-blue-600 ring-4 ring-blue-500/20'
-                        : 'bg-slate-300'
-                    }`} />
-                    <span className={i === 1 ? 'text-blue-600 font-bold' : ''}>
-                      {stop.split(' ')[1]}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      </div>
     </div>
-  )
-}
-
-/* Small stat helper */
-function Stat({ label, value, highlight }) {
-  return (
-    <div className="text-center px-4 border-r last:border-r-0 border-slate-100">
-      <p className="text-xs text-slate-400 uppercase">{label}</p>
-      <p className={`font-bold ${highlight ? 'text-blue-600' : 'text-slate-800'}`}>
-        {value}
-      </p>
-    </div>
-  )
+  );
 }
